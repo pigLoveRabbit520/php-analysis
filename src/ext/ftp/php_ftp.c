@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -141,7 +141,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_ftp_nb_fget, 0, 0, 4)
 	ZEND_ARG_INFO(0, resumepos)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO(arginfo_ftp_pasv, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_ftp_pasv, 0, 0, 2)
 	ZEND_ARG_INFO(0, ftp)
 	ZEND_ARG_INFO(0, pasv)
 ZEND_END_ARG_INFO()
@@ -1491,7 +1491,7 @@ PHP_FUNCTION(ftp_set_option)
 			RETURN_TRUE;
 			break;
 		default:
-			php_error_docref(NULL, E_WARNING, "Unknown option '%pd'", option);
+			php_error_docref(NULL, E_WARNING, "Unknown option '" ZEND_LONG_FMT "'", option);
 			RETURN_FALSE;
 			break;
 	}
@@ -1525,7 +1525,7 @@ PHP_FUNCTION(ftp_get_option)
 			RETURN_BOOL(ftp->usepasvaddress);
 			break;
 		default:
-			php_error_docref(NULL, E_WARNING, "Unknown option '%pd'", option);
+			php_error_docref(NULL, E_WARNING, "Unknown option '" ZEND_LONG_FMT "'", option);
 			RETURN_FALSE;
 			break;
 	}

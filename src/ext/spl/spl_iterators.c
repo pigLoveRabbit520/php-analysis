@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -472,7 +472,8 @@ zend_object_iterator_funcs spl_recursive_it_iterator_funcs = {
 	spl_recursive_it_get_current_data,
 	spl_recursive_it_get_current_key,
 	spl_recursive_it_move_forward,
-	spl_recursive_it_rewind
+	spl_recursive_it_rewind,
+	NULL
 };
 
 static void spl_recursive_it_it_construct(INTERNAL_FUNCTION_PARAMETERS, zend_class_entry *ce_base, zend_class_entry *ce_inner, recursive_it_it_type rit_type)
@@ -1400,10 +1401,6 @@ int spl_dual_it_call_method(char *method, INTERNAL_FUNCTION_PARAMETERS)
 	intern = Z_SPLDUAL_IT_P(getThis());
 
 	ZVAL_STRING(&func, method, 0);
-	if (!zend_is_callable(&func, 0, &method)) {
-		php_error_docref(NULL, E_ERROR, "Method %s::%s() does not exist", intern->inner.ce->name, method);
-		return FAILURE;
-	}
 
 	p = EG(argument_stack).top_element-2;
 	arg_count = (zend_ulong) *p;
@@ -1422,7 +1419,7 @@ int spl_dual_it_call_method(char *method, INTERNAL_FUNCTION_PARAMETERS)
 
 		success = SUCCESS;
 	} else {
-		php_error_docref(NULL, E_ERROR, "Unable to call %s::%s()", intern->inner.ce->name, method);
+		zend_throw_error(NULL, "Unable to call %s::%s()", intern->inner.ce->name, method);
 		success = FAILURE;
 	}
 
@@ -1557,7 +1554,7 @@ static spl_dual_it_object* spl_dual_it_construct(INTERNAL_FUNCTION_PARAMETERS, z
 				return NULL;
 			}
 			if (mode < 0 || mode >= REGIT_MODE_MAX) {
-				zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Illegal mode %pd", mode);
+				zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Illegal mode " ZEND_LONG_FMT, mode);
 				return NULL;
 			}
 			intern->u.regex.mode = mode;
@@ -1650,13 +1647,6 @@ SPL_METHOD(dual_it, getInnerIterator)
 	}
 } /* }}} */
 
-static inline void spl_dual_it_require(spl_dual_it_object *intern)
-{
-	if (!intern->inner.iterator) {
-		php_error_docref(NULL, E_ERROR, "The inner constructor wasn't initialized with an iterator instance");
-	}
-}
-
 static inline void spl_dual_it_free(spl_dual_it_object *intern)
 {
 	if (intern->inner.iterator && intern->inner.iterator->funcs->invalidate_current) {
@@ -1729,8 +1719,9 @@ static inline void spl_dual_it_next(spl_dual_it_object *intern, int do_free)
 {
 	if (do_free) {
 		spl_dual_it_free(intern);
-	} else {
-		spl_dual_it_require(intern);
+	} else if (!intern->inner.iterator) {
+		zend_throw_error(NULL, "The inner constructor wasn't initialized with an iterator instance");
+		return;
 	}
 	intern->inner.iterator->funcs->move_forward(intern->inner.iterator);
 	intern->current.pos++;
@@ -1806,7 +1797,6 @@ SPL_METHOD(dual_it, key)
        proto mixed ParentIterator::current()
        proto mixed IteratorIterator::current()
        proto mixed NoRewindIterator::current()
-       proto mixed AppendIterator::current()
    Get the current element value */
 SPL_METHOD(dual_it, current)
 {
@@ -2164,7 +2154,7 @@ SPL_METHOD(RegexIterator, setMode)
 	}
 
 	if (mode < 0 || mode >= REGIT_MODE_MAX) {
-		zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Illegal mode %pd", mode);
+		zend_throw_exception_ex(spl_ce_InvalidArgumentException, 0, "Illegal mode " ZEND_LONG_FMT, mode);
 		return;/* NULL */
 	}
 
@@ -2502,11 +2492,11 @@ static inline void spl_limit_it_seek(spl_dual_it_object *intern, zend_long pos)
 
 	spl_dual_it_free(intern);
 	if (pos < intern->u.limit.offset) {
-		zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Cannot seek to %pd which is below the offset %pd", pos, intern->u.limit.offset);
+		zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Cannot seek to " ZEND_LONG_FMT " which is below the offset " ZEND_LONG_FMT, pos, intern->u.limit.offset);
 		return;
 	}
 	if (pos >= intern->u.limit.offset + intern->u.limit.count && intern->u.limit.count != -1) {
-		zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Cannot seek to %pd which is behind offset %pd plus count %pd", pos, intern->u.limit.offset, intern->u.limit.count);
+		zend_throw_exception_ex(spl_ce_OutOfBoundsException, 0, "Cannot seek to " ZEND_LONG_FMT " which is behind offset " ZEND_LONG_FMT " plus count " ZEND_LONG_FMT, pos, intern->u.limit.offset, intern->u.limit.count);
 		return;
 	}
 	if (pos != intern->current.pos && instanceof_function(intern->inner.ce, spl_ce_SeekableIterator)) {
@@ -2933,7 +2923,7 @@ SPL_METHOD(CachingIterator, getCache)
 	SPL_FETCH_AND_CHECK_DUAL_IT(intern, getThis());
 
 	if (!(intern->u.caching.flags & CIT_FULL_CACHE))	{
-		zend_throw_exception_ex(spl_ce_BadMethodCallException, 0, "%v does not use a full cache (see CachingIterator::__construct)", ZSTR_VAL(Z_OBJCE_P(getThis())->name));
+		zend_throw_exception_ex(spl_ce_BadMethodCallException, 0, "%s does not use a full cache (see CachingIterator::__construct)", ZSTR_VAL(Z_OBJCE_P(getThis())->name));
 		return;
 	}
 
@@ -3003,7 +2993,7 @@ SPL_METHOD(CachingIterator, count)
 	SPL_FETCH_AND_CHECK_DUAL_IT(intern, getThis());
 
 	if (!(intern->u.caching.flags & CIT_FULL_CACHE))	{
-		zend_throw_exception_ex(spl_ce_BadMethodCallException, 0, "%v does not use a full cache (see CachingIterator::__construct)", ZSTR_VAL(Z_OBJCE_P(getThis())->name));
+		zend_throw_exception_ex(spl_ce_BadMethodCallException, 0, "%s does not use a full cache (see CachingIterator::__construct)", ZSTR_VAL(Z_OBJCE_P(getThis())->name));
 		return;
 	}
 
@@ -3402,6 +3392,29 @@ SPL_METHOD(AppendIterator, append)
 	}
 } /* }}} */
 
+/* {{{ proto mixed AppendIterator::current()
+   Get the current element value */
+SPL_METHOD(AppendIterator, current)
+{
+	spl_dual_it_object   *intern;
+
+	if (zend_parse_parameters_none() == FAILURE) {
+		return;
+	}
+
+	SPL_FETCH_AND_CHECK_DUAL_IT(intern, getThis());
+
+	spl_dual_it_fetch(intern, 1);
+	if (Z_TYPE(intern->current.data) != IS_UNDEF) {
+		zval *value = &intern->current.data;
+
+		ZVAL_DEREF(value);
+		ZVAL_COPY(return_value, value);
+	} else {
+		RETURN_NULL();
+	}
+} /* }}} */
+
 /* {{{ proto void AppendIterator::rewind()
    Rewind to the first iterator and rewind the first iterator, too */
 SPL_METHOD(AppendIterator, rewind)
@@ -3494,7 +3507,7 @@ static const zend_function_entry spl_funcs_AppendIterator[] = {
 	SPL_ME(AppendIterator, rewind,           arginfo_recursive_it_void, ZEND_ACC_PUBLIC)
 	SPL_ME(AppendIterator, valid,            arginfo_recursive_it_void, ZEND_ACC_PUBLIC)
 	SPL_ME(dual_it,        key,              arginfo_recursive_it_void, ZEND_ACC_PUBLIC)
-	SPL_ME(dual_it,        current,          arginfo_recursive_it_void, ZEND_ACC_PUBLIC)
+	SPL_ME(AppendIterator, current,          arginfo_recursive_it_void, ZEND_ACC_PUBLIC)
 	SPL_ME(AppendIterator, next,             arginfo_recursive_it_void, ZEND_ACC_PUBLIC)
 	SPL_ME(dual_it,        getInnerIterator, arginfo_recursive_it_void, ZEND_ACC_PUBLIC)
 	SPL_ME(AppendIterator, getIteratorIndex, arginfo_recursive_it_void, ZEND_ACC_PUBLIC)

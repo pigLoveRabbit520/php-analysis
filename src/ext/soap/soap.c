@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2017 The PHP Group                                |
+  | Copyright (c) 1997-2018 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -955,9 +955,7 @@ PHP_METHOD(SoapFault, __toString)
 	line = zend_read_property(soap_fault_class_entry, this_ptr, "line", sizeof("line")-1, 1, &rv4);
 
 	fci.size = sizeof(fci);
-	fci.function_table = &Z_OBJCE_P(getThis())->function_table;
 	ZVAL_STRINGL(&fci.function_name, "gettraceasstring", sizeof("gettraceasstring")-1);
-	fci.symbol_table = NULL;
 	fci.object = Z_OBJ(EX(This));
 	fci.retval = &trace;
 	fci.param_count = 0;
@@ -974,7 +972,7 @@ PHP_METHOD(SoapFault, __toString)
 	line_val = zval_get_long(line);
 	convert_to_string(&trace);
 
-	str = strpprintf(0, "SoapFault exception: [%s] %s in %s:%pd\nStack trace:\n%s",
+	str = strpprintf(0, "SoapFault exception: [%s] %s in %s:" ZEND_LONG_FMT "\nStack trace:\n%s",
 	               ZSTR_VAL(faultcode_val), ZSTR_VAL(faultstring_val), ZSTR_VAL(file_val), line_val,
 	               Z_STRLEN(trace) ? Z_STRVAL(trace) : "#0 {main}\n");
 
@@ -1280,7 +1278,7 @@ PHP_METHOD(SoapServer, setPersistence)
 				value == SOAP_PERSISTENCE_REQUEST) {
 				service->soap_class.persistence = value;
 			} else {
-				php_error_docref(NULL, E_WARNING, "Tried to set persistence with bogus value (%pd)", value);
+				php_error_docref(NULL, E_WARNING, "Tried to set persistence with bogus value (" ZEND_LONG_FMT ")", value);
 				return;
 			}
 		} else {
@@ -2164,12 +2162,10 @@ static void soap_error_handler(int error_num, const char *error_filename, const 
 			zval fault;
 			char* code = SOAP_GLOBAL(error_code);
 			char buffer[1024];
-			int buffer_len;
+			size_t buffer_len;
 #ifdef va_copy
 			va_list argcopy;
 #endif
-			zend_object **old_objects;
-			int old = PG(display_errors);
 
 #ifdef va_copy
 			va_copy(argcopy, args);
@@ -2179,7 +2175,7 @@ static void soap_error_handler(int error_num, const char *error_filename, const 
 			buffer_len = vslprintf(buffer, sizeof(buffer)-1, format, args);
 #endif
 			buffer[sizeof(buffer)-1]=0;
-			if (buffer_len > sizeof(buffer) - 1 || buffer_len < 0) {
+			if (buffer_len > sizeof(buffer) - 1 || buffer_len == (size_t)-1) {
 				buffer_len = sizeof(buffer) - 1;
 			}
 
@@ -2189,24 +2185,6 @@ static void soap_error_handler(int error_num, const char *error_filename, const 
 			add_soap_fault_ex(&fault, &SOAP_GLOBAL(error_object), code, buffer, NULL, NULL);
 			Z_ADDREF(fault);
 			zend_throw_exception_object(&fault);
-
-			old_objects = EG(objects_store).object_buckets;
-			EG(objects_store).object_buckets = NULL;
-			PG(display_errors) = 0;
-			SG(sapi_headers).http_status_line = NULL;
-			zend_try {
-				call_old_error_handler(error_num, error_filename, error_lineno, format, args);
-			} zend_catch {
-				CG(in_compilation) = _old_in_compilation;
-				EG(current_execute_data) = _old_current_execute_data;
-				if (SG(sapi_headers).http_status_line) {
-					efree(SG(sapi_headers).http_status_line);
-				}
-				SG(sapi_headers).http_status_line = _old_http_status_line;
-				SG(sapi_headers).http_response_code = _old_http_response_code;
-			} zend_end_try();
-			EG(objects_store).object_buckets = old_objects;
-			PG(display_errors) = old;
 			zend_bailout();
 		} else if (!use_exceptions ||
 		           !SOAP_GLOBAL(error_code) ||
@@ -2245,7 +2223,7 @@ static void soap_error_handler(int error_num, const char *error_filename, const 
 				!service->send_errors) {
 				strcpy(buffer, "Internal Error");
 			} else {
-				int buffer_len;
+				size_t buffer_len;
 				zval outbuflen;
 
 #ifdef va_copy
@@ -2256,7 +2234,7 @@ static void soap_error_handler(int error_num, const char *error_filename, const 
 				buffer_len = vslprintf(buffer, sizeof(buffer)-1, format, args);
 #endif
 				buffer[sizeof(buffer)-1]=0;
-				if (buffer_len > sizeof(buffer) - 1 || buffer_len < 0) {
+				if (buffer_len > sizeof(buffer) - 1 || buffer_len == (size_t)-1) {
 					buffer_len = sizeof(buffer) - 1;
 				}
 

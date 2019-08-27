@@ -7,7 +7,6 @@ phar.require_hash=1
 phar.readonly=0
 --FILE--
 <?php
-umask(0);
 Phar::interceptFileFuncs();
 var_dump(stat(""));
 

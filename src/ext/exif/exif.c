@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -1704,7 +1704,7 @@ static void exif_iif_add_value(image_info_type *image_info, int section_index, c
 		case TAG_FMT_UNDEFINED:
 			if (value) {
 				if (tag == TAG_MAKER_NOTE) {
-					length = (int) php_strnlen(value, length);
+					length = MIN(length, strlen(value));
 				}
 
 				/* do not recompute length here */
@@ -2536,10 +2536,7 @@ static void exif_thumbnail_extract(image_info_type *ImageInfo, char *offset, siz
 		return;
 	}
 	/* Check to make sure we are not going to go past the ExifLength */
-	if (ImageInfo->Thumbnail.size > length
-		|| (ImageInfo->Thumbnail.offset + ImageInfo->Thumbnail.size) > length
-		|| ImageInfo->Thumbnail.offset > length - ImageInfo->Thumbnail.size
-	) {
+	if ((ImageInfo->Thumbnail.offset + ImageInfo->Thumbnail.size) > length) {
 		EXIF_ERRLOG_THUMBEOF(ImageInfo)
 		return;
 	}
@@ -2713,11 +2710,11 @@ static int exif_process_unicode(image_info_type *ImageInfo, xp_field_type *xp_fi
  * Process nested IFDs directories in Maker Note. */
 static int exif_process_IFD_in_MAKERNOTE(image_info_type *ImageInfo, char * value_ptr, int value_len, char *offset_base, size_t IFDlength, size_t displacement)
 {
-	int de, i=0, section_index = SECTION_MAKERNOTE;
+	size_t i;
+	int de, section_index = SECTION_MAKERNOTE;
 	int NumDirEntries, old_motorola_intel, offset_diff;
 	const maker_note_type *maker_note;
 	char *dir_start;
-	int data_len;
 
 	for (i=0; i<=sizeof(maker_note_array)/sizeof(maker_note_type); i++) {
 		if (i==sizeof(maker_note_array)/sizeof(maker_note_type)) {
@@ -2772,7 +2769,6 @@ static int exif_process_IFD_in_MAKERNOTE(image_info_type *ImageInfo, char * valu
 	switch (maker_note->offset_mode) {
 		case MN_OFFSET_MAKER:
 			offset_base = value_ptr;
-			data_len = value_len;
 			break;
 		case MN_OFFSET_GUESS:
 			if (maker_note->offset + 10 + 4 >= value_len) {
@@ -2789,7 +2785,6 @@ static int exif_process_IFD_in_MAKERNOTE(image_info_type *ImageInfo, char * valu
 				return FALSE;
 			}
 			offset_base = value_ptr + offset_diff;
-			data_len = value_len - offset_diff;
 			break;
 		default:
 		case MN_OFFSET_NORMAL:
@@ -2803,7 +2798,7 @@ static int exif_process_IFD_in_MAKERNOTE(image_info_type *ImageInfo, char * valu
 
 	for (de=0;de<NumDirEntries;de++) {
 		if (!exif_process_IFD_TAG(ImageInfo, dir_start + 2 + 12 * de,
-								  offset_base, data_len, displacement, section_index, 0, maker_note->tag_table)) {
+								  offset_base, IFDlength, displacement, section_index, 0, maker_note->tag_table)) {
 			return FALSE;
 		}
 	}
@@ -3354,11 +3349,11 @@ static int exif_scan_JPEG_header(image_info_type *ImageInfo)
 		}
 
 		/* Read the length of the section. */
-		if ((lh = php_stream_getc(ImageInfo->infile)) == EOF) {
+		if ((lh = php_stream_getc(ImageInfo->infile)) == (unsigned int)EOF) {
 			EXIF_ERRLOG_CORRUPT(ImageInfo)
 			return FALSE;
 		}
-		if ((ll = php_stream_getc(ImageInfo->infile)) == EOF) {
+		if ((ll = php_stream_getc(ImageInfo->infile)) == (unsigned int)EOF) {
 			EXIF_ERRLOG_CORRUPT(ImageInfo)
 			return FALSE;
 		}

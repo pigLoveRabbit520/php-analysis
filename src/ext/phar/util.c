@@ -3,7 +3,7 @@
   | phar php single-file executable PHP extension                        |
   | utility functions                                                    |
   +----------------------------------------------------------------------+
-  | Copyright (c) 2005-2017 The PHP Group                                |
+  | Copyright (c) 2005-2018 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -178,7 +178,7 @@ int phar_mount_entry(phar_archive_data *phar, char *filename, int filename_len, 
 		return FAILURE;
 	}
 
-	if (path_len >= sizeof(".phar")-1 && !memcmp(path, ".phar", sizeof(".phar")-1)) {
+	if (path_len >= (int)sizeof(".phar")-1 && !memcmp(path, ".phar", sizeof(".phar")-1)) {
 		/* no creating magic phar files by mounting them */
 		return FAILURE;
 	}
@@ -199,13 +199,6 @@ int phar_mount_entry(phar_archive_data *phar, char *filename, int filename_len, 
 			entry.tmp = estrndup(filename, filename_len);
 		}
 	}
-#if PHP_API_VERSION < 20100412
-	if (PG(safe_mode) && !is_phar && (!php_checkuid(entry.tmp, NULL, CHECKUID_CHECK_FILE_AND_DIR))) {
-		efree(entry.tmp);
-		efree(entry.filename);
-		return FAILURE;
-	}
-#endif
 	filename = entry.tmp;
 
 	/* only check openbasedir for files, not for phar streams */
@@ -1184,7 +1177,7 @@ char * phar_compress_filter(phar_entry_info * entry, int return_unknown) /* {{{ 
  */
 char * phar_decompress_filter(phar_entry_info * entry, int return_unknown) /* {{{ */
 {
-	php_uint32 flags;
+	uint32_t flags;
 
 	if (entry->is_modified) {
 		flags = entry->old_flags;
@@ -1232,7 +1225,7 @@ phar_entry_info *phar_get_entry_info_dir(phar_archive_data *phar, char *path, in
 		*error = NULL;
 	}
 
-	if (security && path_len >= sizeof(".phar")-1 && !memcmp(path, ".phar", sizeof(".phar")-1)) {
+	if (security && path_len >= (int)sizeof(".phar")-1 && !memcmp(path, ".phar", sizeof(".phar")-1)) {
 		if (error) {
 			spprintf(error, 4096, "phar error: cannot directly access magic \".phar\" directory or files within it");
 		}
@@ -1410,7 +1403,7 @@ static int phar_call_openssl_signverify(int is_sign, php_stream *fp, zend_off_t 
 		ZVAL_EMPTY_STRING(&zp[0]);
 	}
 
-	if (end != Z_STRLEN(zp[0])) {
+	if ((size_t)end != Z_STRLEN(zp[0])) {
 		zval_dtor(&zp[0]);
 		zval_dtor(&zp[1]);
 		zval_dtor(&zp[2]);
@@ -1480,7 +1473,7 @@ static int phar_call_openssl_signverify(int is_sign, php_stream *fp, zend_off_t 
 /* }}} */
 #endif /* #ifndef PHAR_HAVE_OPENSSL */
 
-int phar_verify_signature(php_stream *fp, size_t end_of_phar, php_uint32 sig_type, char *sig, int sig_len, char *fname, char **signature, int *signature_len, char **error) /* {{{ */
+int phar_verify_signature(php_stream *fp, size_t end_of_phar, uint32_t sig_type, char *sig, int sig_len, char *fname, char **signature, int *signature_len, char **error) /* {{{ */
 {
 	int read_size, len;
 	zend_off_t read_len;
@@ -1571,7 +1564,7 @@ int phar_verify_signature(php_stream *fp, size_t end_of_phar, php_uint32 sig_typ
 			EVP_VerifyInit(md_ctx, mdtype);
 			read_len = end_of_phar;
 
-			if (read_len > sizeof(buf)) {
+			if ((size_t)read_len > sizeof(buf)) {
 				read_size = sizeof(buf);
 			} else {
 				read_size = (int)read_len;
@@ -1620,7 +1613,7 @@ int phar_verify_signature(php_stream *fp, size_t end_of_phar, php_uint32 sig_typ
 			PHP_SHA512Init(&context);
 			read_len = end_of_phar;
 
-			if (read_len > sizeof(buf)) {
+			if ((size_t)read_len > sizeof(buf)) {
 				read_size = sizeof(buf);
 			} else {
 				read_size = (int)read_len;
@@ -1660,7 +1653,7 @@ int phar_verify_signature(php_stream *fp, size_t end_of_phar, php_uint32 sig_typ
 			PHP_SHA256Init(&context);
 			read_len = end_of_phar;
 
-			if (read_len > sizeof(buf)) {
+			if ((size_t)read_len > sizeof(buf)) {
 				read_size = sizeof(buf);
 			} else {
 				read_size = (int)read_len;
@@ -1708,7 +1701,7 @@ int phar_verify_signature(php_stream *fp, size_t end_of_phar, php_uint32 sig_typ
 			PHP_SHA1Init(&context);
 			read_len = end_of_phar;
 
-			if (read_len > sizeof(buf)) {
+			if ((size_t)read_len > sizeof(buf)) {
 				read_size = sizeof(buf);
 			} else {
 				read_size = (int)read_len;
@@ -1748,7 +1741,7 @@ int phar_verify_signature(php_stream *fp, size_t end_of_phar, php_uint32 sig_typ
 			PHP_MD5Init(&context);
 			read_len = end_of_phar;
 
-			if (read_len > sizeof(buf)) {
+			if ((size_t)read_len > sizeof(buf)) {
 				read_size = sizeof(buf);
 			} else {
 				read_size = (int)read_len;

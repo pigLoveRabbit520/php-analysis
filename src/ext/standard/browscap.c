@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -153,7 +153,7 @@ static size_t browscap_compute_regex_len(zend_string *pattern) {
 
 static zend_string *browscap_convert_pattern(zend_string *pattern, int persistent) /* {{{ */
 {
-	int i, j=0;
+	size_t i, j=0;
 	char *t;
 	zend_string *res;
 	char *lc_pattern;
@@ -392,7 +392,7 @@ static void php_browscap_parser_cb(zval *arg1, zval *arg2, zval *arg3, int callb
 
 static int browscap_read_file(char *filename, browser_data *browdata, int persistent) /* {{{ */
 {
-	zend_file_handle fh = {{0}};
+	zend_file_handle fh;
 	browscap_parser_ctx ctx = {0};
 
 	if (filename == NULL || filename[0] == '\0') {

@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -562,15 +562,6 @@ static const zend_module_dep imap_deps[] = {
 };
 /* }}} */
 
-
-/* {{{ PHP_INI
- */
-PHP_INI_BEGIN()
-STD_PHP_INI_BOOLEAN("imap.enable_insecure_rsh", "0", PHP_INI_SYSTEM, OnUpdateBool, enable_rsh, zend_imap_globals, imap_globals)
-PHP_INI_END()
-/* }}} */
-
-
 /* {{{ imap_module_entry
  */
 zend_module_entry imap_module_entry = {
@@ -841,8 +832,6 @@ PHP_MINIT_FUNCTION(imap)
 {
 	unsigned long sa_all =	SA_MESSAGES | SA_RECENT | SA_UNSEEN | SA_UIDNEXT | SA_UIDVALIDITY;
 
-	REGISTER_INI_ENTRIES();
-
 #ifndef PHP_WIN32
 	mail_link(&unixdriver);		/* link in the unix driver */
 	mail_link(&mhdriver);		/* link in the mh driver */
@@ -1060,12 +1049,6 @@ PHP_MINIT_FUNCTION(imap)
 	GC_TEXTS               texts
 	*/
 
-	if (!IMAPG(enable_rsh)) {
-		/* disable SSH and RSH, see https://bugs.php.net/bug.php?id=77153 */
-		mail_parameters (NIL, SET_RSHTIMEOUT, 0);
-		mail_parameters (NIL, SET_SSHTIMEOUT, 0);
-	}
-
 	le_imap = zend_register_list_destructors_ex(mail_close_it, NULL, "imap", module_number);
 	return SUCCESS;
 }
@@ -1152,8 +1135,6 @@ PHP_MINFO_FUNCTION(imap)
 	php_info_print_table_row(2, "Kerberos Support", "enabled");
 #endif
 	php_info_print_table_end();
-
-	DISPLAY_INI_ENTRIES();
 }
 /* }}} */
 
@@ -1331,18 +1312,18 @@ PHP_FUNCTION(imap_append)
 	zend_string *folder, *message, *internal_date = NULL, *flags = NULL;
 	pils *imap_le_struct;
 	STRING st;
-	zend_string* regex;
-	pcre_cache_entry *pce;				/* Compiled regex */
-	zval *subpats = NULL;				/* Parts (not used) */
-	int global = 0;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "rSS|SS", &streamind, &folder, &message, &flags, &internal_date) == FAILURE) {
 		return;
 	}
 
-	regex  = zend_string_init("/[0-3][0-9]-((Jan)|(Feb)|(Mar)|(Apr)|(May)|(Jun)|(Jul)|(Aug)|(Sep)|(Oct)|(Nov)|(Dec))-[0-9]{4} [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [+-][0-9]{4}/", sizeof("/[0-3][0-9]-((Jan)|(Feb)|(Mar)|(Apr)|(May)|(Jun)|(Jul)|(Aug)|(Sep)|(Oct)|(Nov)|(Dec))-[0-9]{4} [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [+-][0-9]{4}/") - 1, 0);
 
 	if (internal_date) {
+		zend_string *regex  = zend_string_init("/[0-3][0-9]-((Jan)|(Feb)|(Mar)|(Apr)|(May)|(Jun)|(Jul)|(Aug)|(Sep)|(Oct)|(Nov)|(Dec))-[0-9]{4} [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [+-][0-9]{4}/", sizeof("/[0-3][0-9]-((Jan)|(Feb)|(Mar)|(Apr)|(May)|(Jun)|(Jul)|(Aug)|(Sep)|(Oct)|(Nov)|(Dec))-[0-9]{4} [0-2][0-9]:[0-5][0-9]:[0-5][0-9] [+-][0-9]{4}/") - 1, 0);
+		pcre_cache_entry *pce;				/* Compiled regex */
+		zval *subpats = NULL;				/* Parts (not used) */
+		int global = 0;
+
 		/* Make sure the given internal_date string matches the RFC specifiedformat */
 		if ((pce = pcre_get_compiled_regex_cache(regex))== NULL) {
 			zend_string_free(regex);
@@ -1359,7 +1340,6 @@ PHP_FUNCTION(imap_append)
 		}
 	}
 
-	zend_string_free(regex);
 	if ((imap_le_struct = (pils *)zend_fetch_resource(Z_RES_P(streamind), "imap", le_imap)) == NULL) {
 		RETURN_FALSE;
 	}
@@ -2931,7 +2911,7 @@ PHP_FUNCTION(imap_utf7_decode)
 #if PHP_DEBUG
 	/* warn if we computed outlen incorrectly */
 	if (outp - out != outlen) {
-		php_error_docref(NULL, E_WARNING, "outp - out [%ld] != outlen [%d]", outp - out, outlen);
+		php_error_docref(NULL, E_WARNING, "outp - out [%zd] != outlen [%d]", outp - out, outlen);
 	}
 #endif
 
@@ -4128,6 +4108,7 @@ PHP_FUNCTION(imap_mail)
 	if (!ZSTR_LEN(message)) {
 		/* this is not really an error, so it is allowed. */
 		php_error_docref(NULL, E_WARNING, "No message string in mail command");
+		message = NULL;
 	}
 
 	if (_php_imap_mail(ZSTR_VAL(to), ZSTR_VAL(subject), ZSTR_VAL(message), headers?ZSTR_VAL(headers):NULL, cc?ZSTR_VAL(cc):NULL,
@@ -4464,7 +4445,7 @@ static zend_string* _php_rfc822_write_address(ADDRESS *addresslist)
 	char address[SENDBUFLEN];
 
 	if (_php_imap_address_size(addresslist) >= SENDBUFLEN) {
-		php_error_docref(NULL, E_ERROR, "Address buffer overflow");
+		zend_throw_error(NULL, "Address buffer overflow");
 		return NULL;
 	}
 	address[0] = 0;

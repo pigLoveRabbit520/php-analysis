@@ -2,7 +2,7 @@
   +----------------------------------------------------------------------+
   | PHP Version 7                                                        |
   +----------------------------------------------------------------------+
-  | Copyright (c) 1997-2008 The PHP Group                                |
+  | Copyright (c) 1997-2018 The PHP Group                                |
   +----------------------------------------------------------------------+
   | This source file is subject to version 3.01 of the PHP license,      |
   | that is bundled with this package in the file LICENSE, and is        |
@@ -244,6 +244,8 @@ for (i = 0; i < calls.length; i++) {
 }
 
 C.WriteBlankLines(1);
+C.WriteLine("STDOUT.WriteLine(\"PHP Version: \" + PHP_VERSION_STRING);");
+C.WriteLine("STDOUT.WriteBlankLines(1);");
 C.WriteLine("conf_process_args();");
 C.WriteBlankLines(1);
 

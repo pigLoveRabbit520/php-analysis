@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -304,9 +304,7 @@ static void user_stream_create_object(struct php_user_stream_wrapper *uwrap, php
 		zval retval;
 
 		fci.size = sizeof(fci);
-		fci.function_table = &uwrap->ce->function_table;
 		ZVAL_UNDEF(&fci.function_name);
-		fci.symbol_table = NULL;
 		fci.object = Z_OBJ_P(object);
 		fci.retval = &retval;
 		fci.param_count = 0;
@@ -315,7 +313,7 @@ static void user_stream_create_object(struct php_user_stream_wrapper *uwrap, php
 
 		fcc.initialized = 1;
 		fcc.function_handler = uwrap->ce->constructor;
-		fcc.calling_scope = EG(scope);
+		fcc.calling_scope = zend_get_executed_scope();
 		fcc.called_scope = Z_OBJCE_P(object);
 		fcc.object = Z_OBJ_P(object);
 

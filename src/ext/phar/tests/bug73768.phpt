@@ -13,4 +13,4 @@ echo "OK\n";
 }
 ?>
 --EXPECTF--
-internal corruption of phar "%sbug73768.phar" (truncated manifest header)
+cannot load phar "%sbug73768.phar" with implicit alias "" under different alias "alias.phar"

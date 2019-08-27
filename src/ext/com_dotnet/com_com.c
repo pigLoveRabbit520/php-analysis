@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -53,6 +53,7 @@ PHP_FUNCTION(com_create_instance)
 		&authid, EOAC_NONE
 	};
 	zend_long cp = GetACP();
+	const struct php_win32_cp *cp_it;
 
 	php_com_initialize();
 	obj = CDNO_FETCH(object);
@@ -70,7 +71,8 @@ PHP_FUNCTION(com_create_instance)
 		return;
 	}
 
-	if (Z_L(0) > cp || ZEND_LONG_INT_OVFL(cp)) {
+	cp_it = php_win32_cp_get_by_id((DWORD)cp);
+	if (!cp_it) {
 		php_com_throw_exception(E_INVALIDARG, "Could not create COM object - invalid codepage!");
 		return;
 	}

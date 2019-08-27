@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) 1997-2018 The PHP Group                                |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -641,7 +641,7 @@ void php_wddx_serialize_var(wddx_packet *packet, zval *var, zend_string *name)
 		case IS_ARRAY:
 			ht = Z_ARRVAL_P(var);
 			if (ht->u.v.nApplyCount > 1) {
-				php_error_docref(NULL, E_RECOVERABLE_ERROR, "WDDX doesn't support circular references");
+				zend_throw_error(NULL, "WDDX doesn't support circular references");
 				return;
 			}
 			if (ZEND_HASH_APPLY_PROTECTION(ht)) {
@@ -656,7 +656,7 @@ void php_wddx_serialize_var(wddx_packet *packet, zval *var, zend_string *name)
 		case IS_OBJECT:
 			ht = Z_OBJPROP_P(var);
 			if (ht->u.v.nApplyCount > 1) {
-				php_error_docref(NULL, E_RECOVERABLE_ERROR, "WDDX doesn't support circular references");
+				zend_throw_error(NULL, "WDDX doesn't support circular references");
 				return;
 			}
 			ht->u.v.nApplyCount++;
@@ -992,12 +992,8 @@ static void php_wddx_pop_element(void *user_data, const XML_Char *name)
 						/* Clean up class name var entry */
 						zval_ptr_dtor(&ent1->data);
 					} else if (Z_TYPE(ent2->data) == IS_OBJECT) {
-						zend_class_entry *old_scope = EG(scope);
-
-						EG(scope) = Z_OBJCE(ent2->data);
-						add_property_zval(&ent2->data, ent1->varname, &ent1->data);
+						zend_update_property(Z_OBJCE(ent2->data), &ent2->data, ent1->varname, strlen(ent1->varname), &ent1->data);
 						if Z_REFCOUNTED(ent1->data) Z_DELREF(ent1->data);
-						EG(scope) = old_scope;
 					} else {
 						zend_symtable_str_update(target_hash, ent1->varname, strlen(ent1->varname), &ent1->data);
 					}
